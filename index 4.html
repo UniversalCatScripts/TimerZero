@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cronómetro de vueltas</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222b; --line:#2a2f3a;
+    --text:#e8eaf0; --muted:#8b93a7; --accent:#4ade80; --accent2:#60a5fa;
+    --danger:#f87171; --warn:#fbbf24; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  button,input{font:inherit}
+  .wrap{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+  header h1{font-size:1.25rem;margin:0;letter-spacing:.3px}
+  .user{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+  .btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 16px;border-radius:10px;cursor:pointer;transition:.15s}
+  .btn:hover{border-color:#3a4150}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn.primary{background:var(--accent);color:#06240f;border-color:var(--accent);font-weight:600}
+  .btn.blue{background:var(--accent2);color:#071a33;border-color:var(--accent2);font-weight:600}
+  .btn.danger{color:var(--danger)}
+  .btn.small{padding:6px 10px;font-size:.85rem}
+  input[type=text],input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:10px;outline:none}
+  input:focus{border-color:var(--accent2)}
+  label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 6px}
+  .hidden{display:none!important}
+  .muted{color:var(--muted)}
+  .err{color:var(--danger);font-size:.9rem;min-height:1.2em;margin-top:10px}
+
+  /* Auth */
+  .auth{max-width:380px;margin:8vh auto 0}
+  .tabs{display:flex;gap:6px;margin-bottom:8px}
+  .tabs button{flex:1;background:none;border:none;color:var(--muted);padding:10px;border-bottom:2px solid var(--line);cursor:pointer}
+  .tabs button.active{color:var(--text);border-color:var(--accent)}
+  .note{font-size:.8rem;color:var(--muted);margin-top:16px;line-height:1.45}
+
+  /* Nav */
+  .nav{display:flex;gap:6px;margin-bottom:16px}
+  .nav button{background:none;border:1px solid transparent;color:var(--muted);padding:8px 14px;border-radius:10px;cursor:pointer}
+  .nav button.active{background:var(--panel);border-color:var(--line);color:var(--text)}
+
+  /* Timer */
+  .timer-name{display:flex;gap:10px;align-items:end}
+  .timer-name > div{flex:1}
+  .clock{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:clamp(3rem,13vw,6rem);text-align:center;margin:24px 0 6px;letter-spacing:1px}
+  .lapclock{font-family:ui-monospace,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums;text-align:center;color:var(--muted);margin-bottom:22px}
+  .controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+  .controls .btn{min-width:110px}
+  .status{text-align:center;font-size:.85rem;color:var(--muted);margin-top:6px;min-height:1.2em}
+
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}
+  th{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:500}
+  td.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+  tr.best td{color:var(--accent)}
+  tr.worst td{color:var(--danger)}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:18px 0}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .stat .k{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .stat .v{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.15rem;margin-top:4px}
+  .section-title{display:flex;justify-content:space-between;align-items:center;margin:22px 0 8px}
+  .section-title h2{font-size:1rem;margin:0}
+
+  /* History */
+  .hist-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);margin-bottom:10px;cursor:pointer}
+  .hist-item:hover{border-color:#3a4150}
+  .hist-item .t{font-weight:600}
+  .hist-item .s{font-size:.85rem;color:var(--muted);margin-top:3px}
+  .hist-item .tot{font-family:ui-monospace,Menlo,Consolas,monospace}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .search{flex:1;min-width:180px}
+  .empty{text-align:center;color:var(--muted);padding:30px 0}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ LOGIN / REGISTRO ============ -->
+  <section id="authView" class="auth hidden">
+    <h1 style="text-align:center;margin-bottom:20px">⏱ Cronómetro de vueltas</h1>
+    <div class="panel">
+      <p style="margin-top:0">Inicia sesión con tu cuenta de Google para guardar tus tiempos y verlos desde cualquier dispositivo.</p>
+      <button class="btn primary" style="width:100%" id="googleBtn" disabled>Cargando Google…</button>
+      <div class="err" id="authErr"></div>
+      <p class="note">Tus tiempos se guardan en una carpeta privada de tu Google Drive que solo esta app puede ver (no aparece entre tus archivos y no ocupa nada apreciable). Nadie más tiene acceso a ellos.</p>
+      <p class="note hidden" id="cfgWarn" style="color:var(--warn)">Falta configurar el <code>CLIENT_ID</code> de Google Cloud en el código de la página.</p>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section id="appView" class="hidden">
+    <header>
+      <h1>⏱ Cronómetro de vueltas</h1>
+      <div class="user">
+        <img id="avatar" class="hidden" alt="" referrerpolicy="no-referrer" style="width:28px;height:28px;border-radius:50%">
+        <strong id="whoami"></strong>
+        <button class="btn small" id="syncBtn" disabled>💾 Solo local</button>
+        <button class="btn small" id="logoutBtn">Cerrar sesión</button>
+      </div>
+    </header>
+
+    <nav class="nav">
+      <button id="navTimer" class="active">Cronómetro</button>
+      <button id="navHistory">Guardados</button>
+    </nav>
+
+    <!-- Timer -->
+    <div id="timerView" class="panel">
+      <div class="timer-name">
+        <div>
+          <label for="timerName" style="margin-top:0">¿Qué estás cronometrando?</label>
+          <input id="timerName" type="text" placeholder="Ej.: 400 m en pista, series de natación…" maxlength="80">
+        </div>
+      </div>
+
+      <div class="clock" id="clock">00:00.00</div>
+      <div class="lapclock">Vuelta actual: <span id="lapClock">00:00.00</span></div>
+
+      <div class="controls">
+        <button class="btn primary" id="startBtn">Iniciar</button>
+        <button class="btn" id="lapBtn" disabled>Vuelta</button>
+        <button class="btn" id="resetBtn" disabled>Reiniciar</button>
+        <button class="btn blue" id="saveBtn" disabled>Guardar resultado</button>
+      </div>
+      <div class="status muted">Atajos: <kbd>Espacio</kbd> iniciar/pausar · <kbd>V</kbd> vuelta</div>
+
+      <div id="liveResults" class="hidden">
+        <div class="stats" id="liveStats"></div>
+        <table>
+          <thead><tr><th>#</th><th>Vuelta</th><th>Total</th><th>Dif. media</th></tr></thead>
+          <tbody id="lapBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History list -->
+    <div id="historyView" class="panel hidden">
+      <div class="toolbar" style="margin-bottom:14px">
+        <input class="search" id="searchInput" type="text" placeholder="Buscar por nombre…">
+        <button class="btn small" id="exportBtn">Exportar JSON</button>
+        <label class="btn small" style="margin:0;color:var(--text)">Importar<input type="file" id="importInput" accept="application/json" hidden></label>
+      </div>
+      <div id="historyList"></div>
+    </div>
+
+    <!-- History detail -->
+    <div id="detailView" class="panel hidden">
+      <div class="toolbar" style="justify-content:space-between">
+        <button class="btn small" id="backBtn">← Volver</button>
+        <div class="toolbar">
+          <button class="btn small" id="csvBtn">Descargar CSV</button>
+          <button class="btn small danger" id="deleteBtn">Eliminar</button>
+        </div>
+      </div>
+      <h2 id="detTitle" style="margin:18px 0 4px"></h2>
+      <div class="muted" id="detDate"></div>
+      <div class="stats" id="detStats"></div>
+      <table>
+        <thead><tr><th>#</th><th>Vuelta</th><th>Total</th><th>Dif. media</th></tr></thead>
+        <tbody id="detBody"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer onload="window.__gisLoaded && window.__gisLoaded()"></script>
+<script>
+// ======================================================================
+//  CONFIGURACIÓN: pega aquí el ID de cliente OAuth de Google Cloud
+//  (APIs y servicios → Credenciales → ID de cliente de OAuth → Aplicación web)
+// ======================================================================
+const CLIENT_ID = 'PEGA_AQUI_TU_CLIENT_ID.apps.googleusercontent.com';
+
+(() => {
+  'use strict';
+
+  // ---------- Almacenamiento seguro ----------
+  const store = {
+    get(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { toast('No se pudo guardar (almacenamiento lleno o bloqueado)'); return false; } },
+    del(k) { try { localStorage.removeItem(k); } catch {} }
+  };
+  // sessionStorage: el token de Google solo vive mientras la pestaña está abierta
+  Object.assign(store, {
+    sget(k, def) { try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
+    sset(k, v) { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch {} },
+    sdel(k) { try { sessionStorage.removeItem(k); } catch {} }
+  });
+  const K_SESSION = 'ltg_session';
+  const K_TOKEN = 'ltg_token';
+  const kData = u => 'ltg_data_' + u;
+  const kDraft = u => 'ltg_draft_' + u;
+
+  // ---------- Utilidades ----------
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function fmt(ms) {
+    ms = Math.max(0, Math.floor(ms));
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor(ms / 60000) % 60;
+    const s = Math.floor(ms / 1000) % 60;
+    const cs = Math.floor(ms / 10) % 100;
+    const p = n => String(n).padStart(2, '0');
+    return (h ? h + ':' + p(m) : p(m)) + ':' + p(s) + '.' + p(cs);
+  }
+  function fmtDiff(ms) { return (ms >= 0 ? '+' : '−') + fmt(Math.abs(ms)); }
+  function fmtDate(ts) { return new Date(ts).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }); }
+  let toastT;
+  function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+  function download(name, text, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
+  // ---------- Inicio de sesión con Google (Google Identity Services) ----------
+  // El cliente OAuth se crea en Google Cloud Console. No hace falta servidor:
+  // Google da un token de acceso al navegador, con él se lee el perfil y los
+  // tiempos se guardan en la carpeta oculta de la app en el Google Drive del usuario.
+  const SCOPE_DRIVE = 'https://www.googleapis.com/auth/drive.appdata';
+  const SCOPES = ['openid', 'email', 'profile', SCOPE_DRIVE].join(' ');
+  const configured = !CLIENT_ID.startsWith('PEGA_AQUI');
+
+  let user = null;        // id de Google (sub)
+  let profile = null;     // { sub, name, email, picture }
+  let token = store.sget(K_TOKEN, null); // { value, exp, drive, sub }
+  let tokenClient = null, pending = null;
+
+  function initGis() {
+    if (!configured || !window.google?.accounts?.oauth2) return;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: r => {
+        const p = pending; pending = null; if (!p) return;
+        if (r.error) return p.reject(new Error(r.error_description || r.error));
+        token = {
+          value: r.access_token,
+          exp: Date.now() + (Number(r.expires_in) || 3600) * 1000,
+          drive: google.accounts.oauth2.hasGrantedAnyScope(r, SCOPE_DRIVE)
+        };
+        p.resolve(token);
+      },
+      error_callback: e => {
+        const p = pending; pending = null;
+        if (p) p.reject(new Error(e?.type === 'popup_closed' ? 'Se cerró la ventana de Google.' :
+          e?.type === 'popup_failed_to_open' ? 'El navegador bloqueó la ventana emergente.' : (e?.message || 'Error de Google')));
+      }
+    });
+    $('googleBtn').disabled = false;
+    $('googleBtn').textContent = 'Entrar con Google';
+  }
+  window.__gisLoaded = initGis;
+  if (window.google?.accounts?.oauth2) initGis();
+
+  const tokenValid = () => token && token.sub === user && Date.now() < token.exp - 60000;
+
+  // Debe llamarse desde un clic del usuario si no hay token válido (abre una ventana de Google).
+  function requestToken(hint) {
+    if (!tokenClient) return Promise.reject(new Error('Google todavía no ha cargado.'));
+    if (pending) return Promise.reject(new Error('Ya hay un inicio de sesión en curso.'));
+    return new Promise((resolve, reject) => {
+      pending = { resolve, reject };
+      tokenClient.requestAccessToken(hint ? { prompt: '', login_hint: hint } : { prompt: 'select_account' });
+    });
+  }
+  async function getToken() {
+    if (tokenValid()) return token;
+    const t = await requestToken(profile?.email);
+    t.sub = user; store.sset(K_TOKEN, t);
+    return t;
+  }
+
+  $('googleBtn').onclick = async () => {
+    const err = $('authErr'); err.textContent = '';
+    $('googleBtn').disabled = true;
+    try {
+      const t = await requestToken(null);
+      const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', { headers: { Authorization: 'Bearer ' + t.value } });
+      if (!res.ok) throw new Error('No se pudo leer el perfil de Google.');
+      const p = await res.json();
+      t.sub = p.sub; token = t; store.sset(K_TOKEN, t);
+      login({ sub: p.sub, name: p.name || p.email, email: p.email, picture: p.picture });
+      if (!t.drive) toast('Sin permiso de Drive: los tiempos se guardarán solo en este navegador');
+    } catch (e) { err.textContent = e.message; }
+    finally { $('googleBtn').disabled = !tokenClient; }
+  };
+
+  function login(p) {
+    profile = p; user = p.sub;
+    store.set(K_SESSION, p);
+    $('whoami').textContent = p.name;
+    $('avatar').classList.toggle('hidden', !p.picture);
+    if (p.picture) $('avatar').src = p.picture;
+    $('authView').classList.add('hidden');
+    $('appView').classList.remove('hidden');
+    loadDraft();
+    show('timer');
+    if (tokenValid() && token.drive) sync(); else setSync(canSync() ? 'pending' : 'local');
+  }
+  function logout() {
+    if (syncState === 'pending' || syncState === 'error') {
+      if (!confirm('Hay cambios sin sincronizar con Google Drive. Se quedarán en este navegador. ¿Cerrar sesión igualmente?')) return;
+    }
+    if (timer.running) pause();
+    saveDraft();
+    // Si todo está en Drive, no dejamos copia de los tiempos en este navegador
+    if (syncState === 'ok') { store.del(kData(user)); store.del(kDraft(user)); }
+    if (token?.value && window.google?.accounts?.oauth2) {
+      try { google.accounts.oauth2.revoke(token.value, () => {}); } catch {}
+    }
+    store.del(K_SESSION); store.sdel(K_TOKEN);
+    user = null; profile = null; token = null;
+    resetTimer(true);
+    $('appView').classList.add('hidden');
+    $('authView').classList.remove('hidden');
+  }
+  $('logoutBtn').onclick = logout;
+
+  // ---------- Sincronización con Google Drive (appDataFolder) ----------
+  const DRIVE_FILE = 'cronometro-vueltas.json';
+  let fileId = null, syncState = 'local', syncChain = Promise.resolve();
+  const canSync = () => !token || token.sub !== user || token.drive; // sin token aún no sabemos: asumimos que sí
+
+  function setSync(state, msg) {
+    syncState = state;
+    const b = $('syncBtn');
+    const labels = { ok: '☁ Sincronizado', busy: '☁ Sincronizando…', pending: '☁ Sincronizar', error: '⚠ Reintentar', local: '💾 Solo local' };
+    b.textContent = labels[state];
+    b.disabled = state === 'busy' || state === 'local';
+    b.title = msg || (state === 'local' ? 'No diste permiso de Drive: los tiempos solo están en este navegador' : 'Google Drive');
+  }
+  $('syncBtn').onclick = () => sync();
+
+  async function gfetch(url, opts = {}) {
+    const res = await fetch(url, { ...opts, headers: { ...(opts.headers || {}), Authorization: 'Bearer ' + token.value } });
+    if (res.status === 401) { token = null; store.sdel(K_TOKEN); throw new Error('La sesión de Google caducó. Pulsa Reintentar.'); }
+    if (!res.ok) throw new Error('Error de Google Drive (' + res.status + ')');
+    return res;
+  }
+  async function driveRead() {
+    if (!fileId) {
+      const q = encodeURIComponent(`name='${DRIVE_FILE}'`);
+      const r = await (await gfetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${q}&fields=files(id)`)).json();
+      fileId = r.files?.[0]?.id || null;
+    }
+    if (!fileId) return { records: [], deleted: [] };
+    return (await gfetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`)).json();
+  }
+  async function driveWrite(obj) {
+    const body = JSON.stringify(obj);
+    if (fileId) {
+      await gfetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body });
+      return;
+    }
+    const boundary = 'b' + Math.random().toString(36).slice(2);
+    const multipart =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+      JSON.stringify({ name: DRIVE_FILE, parents: ['appDataFolder'] }) +
+      `\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+    const r = await (await gfetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
+      method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body: multipart })).json();
+    fileId = r.id;
+  }
+  function merge(a, b) {
+    const deleted = [...new Set([...(a.deleted || []), ...(b.deleted || [])])];
+    const del = new Set(deleted), map = new Map();
+    for (const r of [...(b.records || []), ...(a.records || [])]) if (r && !del.has(r.id)) map.set(r.id, r);
+    return { records: [...map.values()].sort((x, y) => y.date - x.date), deleted };
+  }
+  function sync() {
+    if (!user || !canSync()) return Promise.resolve();
+    const u = user;
+    syncChain = syncChain.then(async () => {
+      if (user !== u) return;
+      setSync('busy');
+      try {
+        await getToken();
+        if (!token.drive) { setSync('local'); return; }
+        const merged = merge(getStore(), await driveRead());
+        if (user !== u) return;
+        putStore(merged);
+        await driveWrite(merged);
+        setSync('ok');
+        if (!$('historyView').classList.contains('hidden')) renderHistory();
+      } catch (e) {
+        if (user === u) { setSync('error', e.message); toast(e.message); }
+      }
+    });
+    return syncChain;
+  }
+
+  // ---------- Navegación ----------
+  function show(view) {
+    $('timerView').classList.toggle('hidden', view !== 'timer');
+    $('historyView').classList.toggle('hidden', view !== 'history');
+    $('detailView').classList.toggle('hidden', view !== 'detail');
+    $('navTimer').classList.toggle('active', view === 'timer');
+    $('navHistory').classList.toggle('active', view === 'history' || view === 'detail');
+    if (view === 'history') renderHistory();
+  }
+  $('navTimer').onclick = () => show('timer');
+  $('navHistory').onclick = () => show('history');
+
+  // ---------- Cronómetro ----------
+  // Se guarda el instante de inicio (Date.now) para que el tiempo sea correcto
+  // aunque la pestaña esté en segundo plano o se recargue la página.
+  const timer = { running: false, startedAt: 0, accumulated: 0, laps: [], startedTs: null };
+  let raf = null;
+
+  const elapsed = () => timer.accumulated + (timer.running ? Date.now() - timer.startedAt : 0);
+  const lastLapTotal = () => timer.laps.length ? timer.laps[timer.laps.length - 1] : 0;
+
+  function tick() {
+    const e = elapsed();
+    $('clock').textContent = fmt(e);
+    $('lapClock').textContent = fmt(e - lastLapTotal());
+    if (timer.running) raf = requestAnimationFrame(tick);
+  }
+  function start() {
+    if (timer.running) return;
+    if (!timer.startedTs) timer.startedTs = Date.now();
+    timer.running = true;
+    timer.startedAt = Date.now();
+    raf = requestAnimationFrame(tick);
+    updateButtons(); saveDraft();
+  }
+  function pause() {
+    if (!timer.running) return;
+    timer.accumulated += Date.now() - timer.startedAt;
+    timer.running = false;
+    cancelAnimationFrame(raf);
+    tick(); updateButtons(); saveDraft();
+  }
+  function lap() {
+    if (!timer.running) return;
+    const e = elapsed();
+    if (e - lastLapTotal() < 50) return; // evita dobles pulsaciones
+    timer.laps.push(e);
+    renderLaps(); updateButtons(); saveDraft();
+  }
+  function resetTimer(silent) {
+    if (!silent && timer.laps.length && !confirm('¿Reiniciar? Se perderán las vueltas no guardadas.')) return;
+    timer.running = false; timer.accumulated = 0; timer.laps = []; timer.startedTs = null;
+    cancelAnimationFrame(raf);
+    tick(); renderLaps(); updateButtons();
+    if (user) store.del(kDraft(user));
+  }
+  function updateButtons() {
+    const e = elapsed();
+    $('startBtn').textContent = timer.running ? 'Pausar' : (e > 0 ? 'Reanudar' : 'Iniciar');
+    $('startBtn').className = 'btn ' + (timer.running ? '' : 'primary');
+    $('lapBtn').disabled = !timer.running;
+    $('resetBtn').disabled = timer.running || e === 0;
+    $('saveBtn').disabled = timer.running || e === 0;
+  }
+
+  $('startBtn').onclick = () => timer.running ? pause() : start();
+  $('lapBtn').onclick = lap;
+  $('resetBtn').onclick = () => resetTimer(false);
+  $('timerName').addEventListener('input', saveDraft);
+
+  document.addEventListener('keydown', e => {
+    if (!user || $('timerView').classList.contains('hidden')) return;
+    if (['INPUT', 'TEXTAREA', 'BUTTON'].includes(document.activeElement.tagName)) return;
+    if (e.code === 'Space') { e.preventDefault(); timer.running ? pause() : start(); }
+    else if (e.key === 'v' || e.key === 'V') lap();
+  });
+
+  // ---------- Cálculo de resultados ----------
+  function lapDurations(laps) { return laps.map((t, i) => t - (i ? laps[i - 1] : 0)); }
+  function computeStats(laps, total) {
+    const d = lapDurations(laps);
+    if (!d.length) return { count: 0, total, d };
+    const sum = d.reduce((a, b) => a + b, 0);
+    const avg = sum / d.length;
+    const best = Math.min(...d), worst = Math.max(...d);
+    const sd = Math.sqrt(d.reduce((a, b) => a + (b - avg) ** 2, 0) / d.length);
+    return { count: d.length, total, d, avg, best, worst, sd, bestI: d.indexOf(best), worstI: d.indexOf(worst) };
+  }
+  function statsHTML(s) {
+    const box = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+    let h = box('Tiempo total', fmt(s.total)) + box('Vueltas', s.count);
+    if (s.count) h += box('Media', fmt(s.avg)) + box('Mejor', `${fmt(s.best)} <span class="muted" style="font-size:.8rem">#${s.bestI + 1}</span>`) +
+      box('Peor', `${fmt(s.worst)} <span class="muted" style="font-size:.8rem">#${s.worstI + 1}</span>`) + box('Desv. típica', fmt(s.sd));
+    return h;
+  }
+  function rowsHTML(s, laps) {
+    // Más reciente arriba
+    return s.d.map((dur, i) => {
+      const cls = s.count > 1 ? (i === s.bestI ? 'best' : i === s.worstI ? 'worst' : '') : '';
+      return `<tr class="${cls}"><td>${i + 1}</td><td class="mono">${fmt(dur)}</td><td class="mono">${fmt(laps[i])}</td><td class="mono">${fmtDiff(dur - s.avg)}</td></tr>`;
+    }).reverse().join('');
+  }
+  function renderLaps() {
+    const has = timer.laps.length > 0;
+    $('liveResults').classList.toggle('hidden', !has);
+    if (!has) return;
+    const s = computeStats(timer.laps, elapsed());
+    $('liveStats').innerHTML = statsHTML(s);
+    $('lapBody').innerHTML = rowsHTML(s, timer.laps);
+  }
+
+  // ---------- Borrador (sobrevive a recargas) ----------
+  function saveDraft() {
+    if (!user) return;
+    if (!timer.startedTs && !$('timerName').value) { store.del(kDraft(user)); return; }
+    store.set(kDraft(user), { ...timer, name: $('timerName').value });
+  }
+  function loadDraft() {
+    const d = store.get(kDraft(user), null);
+    resetTimer(true);
+    $('timerName').value = '';
+    if (d) {
+      Object.assign(timer, { running: d.running, startedAt: d.startedAt, accumulated: d.accumulated, laps: d.laps || [], startedTs: d.startedTs });
+      $('timerName').value = d.name || '';
+      if (timer.running) raf = requestAnimationFrame(tick);
+    }
+    tick(); renderLaps(); updateButtons();
+  }
+  window.addEventListener('beforeunload', saveDraft);
+
+  // ---------- Guardar resultados ----------
+  const getStore = () => { const d = store.get(kData(user), null); return d && Array.isArray(d.records) ? d : { records: [], deleted: [] }; };
+  const putStore = d => store.set(kData(user), d);
+  const getData = () => getStore().records;
+  function setData(records) {
+    const ok = putStore({ ...getStore(), records });
+    if (ok && canSync()) { setSync('pending'); sync(); }
+    return ok;
+  }
+  function deleteRecord(id) {
+    const d = getStore();
+    putStore({ records: d.records.filter(r => r.id !== id), deleted: [...new Set([...d.deleted, id])] });
+    if (canSync()) { setSync('pending'); sync(); }
+  }
+
+  $('saveBtn').onclick = () => {
+    if (timer.running) return;
+    const total = elapsed();
+    if (!total) return;
+    // Si el tiempo tras la última vuelta es relevante, se cuenta como vuelta final
+    const laps = [...timer.laps];
+    if (total - lastLapTotal() >= 50) laps.push(total);
+    const name = $('timerName').value.trim() || 'Sin nombre';
+    const rec = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7), name, date: timer.startedTs || Date.now(), savedAt: Date.now(), total, laps };
+    const data = getData(); data.unshift(rec);
+    if (!setData(data)) return;
+    toast('Resultado guardado');
+    resetTimer(true);
+    openDetail(rec.id);
+  };
+
+  // ---------- Historial ----------
+  function renderHistory() {
+    const q = $('searchInput').value.trim().toLowerCase();
+    const data = getData().filter(r => r.name.toLowerCase().includes(q));
+    const list = $('historyList');
+    if (!data.length) { list.innerHTML = `<div class="empty">${q ? 'No hay resultados para esa búsqueda.' : 'Aún no has guardado ningún resultado.'}</div>`; return; }
+    list.innerHTML = data.map(r => {
+      const s = computeStats(r.laps, r.total);
+      return `<div class="hist-item" data-id="${esc(r.id)}">
+        <div><div class="t">${esc(r.name)}</div><div class="s">${fmtDate(r.date)} · ${s.count} vuelta${s.count === 1 ? '' : 's'}${s.count ? ' · mejor ' + fmt(s.best) : ''}</div></div>
+        <div class="tot">${fmt(r.total)}</div></div>`;
+    }).join('');
+  }
+  $('historyList').onclick = e => { const it = e.target.closest('.hist-item'); if (it) openDetail(it.dataset.id); };
+  $('searchInput').addEventListener('input', renderHistory);
+
+  let currentId = null;
+  function openDetail(id) {
+    const r = getData().find(x => x.id === id);
+    if (!r) return show('history');
+    currentId = id;
+    const s = computeStats(r.laps, r.total);
+    $('detTitle').textContent = r.name;
+    $('detDate').textContent = fmtDate(r.date);
+    $('detStats').innerHTML = statsHTML(s);
+    $('detBody').innerHTML = rowsHTML(s, r.laps);
+    show('detail');
+  }
+  $('backBtn').onclick = () => show('history');
+  $('deleteBtn').onclick = () => {
+    if (!confirm('¿Eliminar este resultado?')) return;
+    deleteRecord(currentId);
+    toast('Eliminado'); show('history');
+  };
+  $('csvBtn').onclick = () => {
+    const r = getData().find(x => x.id === currentId); if (!r) return;
+    const d = lapDurations(r.laps);
+    const lines = ['vuelta,tiempo_vuelta,tiempo_total,vuelta_ms,total_ms', ...d.map((x, i) => `${i + 1},${fmt(x)},${fmt(r.laps[i])},${x},${r.laps[i]}`)];
+    download(r.name.replace(/[^\w\-]+/g, '_') + '.csv', lines.join('\n'), 'text/csv');
+  };
+  $('exportBtn').onclick = () => download(`cronometro_${(profile?.email || 'datos').split('@')[0]}.json`, JSON.stringify(getData(), null, 2), 'application/json');
+  $('importInput').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const arr = JSON.parse(await f.text());
+      if (!Array.isArray(arr)) throw 0;
+      const valid = arr.filter(r => r && typeof r.id === 'string' && typeof r.name === 'string' && Number.isFinite(r.total) && Array.isArray(r.laps) && r.laps.every(Number.isFinite));
+      const data = getData(); const ids = new Set(data.map(r => r.id));
+      const added = valid.filter(r => !ids.has(r.id));
+      setData([...added, ...data].sort((a, b) => b.date - a.date));
+      toast(`Importados ${added.length} resultado(s)`); renderHistory();
+    } catch { toast('Archivo no válido'); }
+  };
+
+  // ---------- Arranque ----------
+  if (!configured) { $('cfgWarn').classList.remove('hidden'); $('googleBtn').textContent = 'Google no configurado'; }
+  const saved = store.get(K_SESSION, null);
+  if (saved && saved.sub) login(saved);
+  else $('authView').classList.remove('hidden');
+})();
+</script>
+</body>
+</html>
